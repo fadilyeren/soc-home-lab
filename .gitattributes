@@ -1,0 +1,3 @@
+# Sysmon configuration is kept byte for byte (no line ending conversion).
+# The config hash Sysmon reports is the SHA256 of this file; changing it changes the hash.
+lab/sysmon/*.xml -text

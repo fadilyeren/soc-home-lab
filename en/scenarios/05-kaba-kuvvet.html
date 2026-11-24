@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brute force over SMB · SOC Home Lab</title>
+  <link rel="stylesheet" href="../../css/style.css">
+  <link rel="alternate" hreflang="tr" href="../../senaryolar/05-kaba-kuvvet.html">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a href="../">SOC Home Lab</a>
+      <nav>
+        <a href="../#scenarios">Scenarios</a>
+        <a href="https://github.com/fadilyeren/soc-home-lab">GitHub</a>
+        <a class="lang" href="../../senaryolar/05-kaba-kuvvet.html" lang="tr" hreflang="tr" title="Türkçe">TR</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="read">
+    <p class="back"><a href="../#scenarios">← Scenarios</a></p>
+    <h1>05 · Brute force over SMB</h1>
+    <ul class="meta"><li>T1110.001</li><li class="on">status: alert</li></ul>
+    <p class="lead">Many failed network/RDP logons from a single source IP in a short time (4625, Logon Type 3 and 10).</p>
+
+    <h2>Attack</h2>
+    <pre><code># Kali (192.168.56.50) → Windows VM (192.168.56.102), host-only network only
+nxc smb 192.168.56.102 -u testuser -p ~/parolalar.txt</code></pre>
+
+    <h2>Detection (SPL)</h2>
+    <h3>Detection and alert query</h3>
+<pre><code>index=wineventlog EventID=4625 Logon_Type IN (3,10)
+| stats count by src_ip
+| where count &gt; 9</code></pre>
+
+    <h2>Scheduled alert</h2>
+<table>
+<tr><th>Setting</th><th>Value</th></tr>
+<tr><td>Type</td><td>Scheduled, cron <code>*/5 * * * *</code></td></tr>
+<tr><td>Time range</td><td>Last 5 minutes</td></tr>
+<tr><td>Trigger</td><td>Number of Results &gt; 0, Once</td></tr>
+<tr><td>Action</td><td>Add to Triggered Alerts, Severity High</td></tr>
+</table>
+
+    <h2>False positives and tuning</h2>
+    <p>Before the attack I looked at the last 7 days: there were only 2 events with 4625, both my own logons at the screen (Logon Type 2). The error code said the password had expired. Windows had indeed asked me to change my password that day. There were no failed logons over the network at all. Since the rule only looks at Logon Type 3 (network) and 10 (RDP), these two are out of scope anyway. One of the events in the attack trail wasn't a password attempt either; it was netexec's own handshake.</p>
+    <p>There's also a possible false positive in a real environment: a service still running with an old password can keep producing 4625 from a single source. I had seen an example like this in the BOTS v2 data: 85 attempts from 10.0.1.220 against the Administrator account, with no successful logon.</p>
+
+    <h2>Fixes</h2>
+    <p>Hydra's SMB module couldn't talk to newer SMB versions, so I ran the attack with netexec. The account was locked out after 10 attempts. I ran the repeat tests with a non-existent account (<code>testuser</code>) that can't be locked.</p>
+    <p>I first set up the alert to run every minute and look at the last 1 minute, and it didn't trigger. When I ran the query myself it returned results, so the problem wasn't the query. Thinking about how long logs take to reach Splunk, I realized 1 minute wasn't enough, and I raised both the schedule and the window to 5 minutes. The alert triggered on the next attack.</p>
+    <p>I chose a threshold of 10, because a normal user who forgets their password tries 5-6 times at most, and Windows also set its lockout threshold to 10. This has a cost: on a machine with a lower lockout threshold, the account gets locked before reaching 10 and the rule can miss the attack. A slow attack spread across the 5-minute window can also stay below the threshold.</p>
+    </div>
+
+    <h2>Screenshots</h2>
+    <figure>
+  <a href="../../img/senaryolar/05-kaba-kuvvet/01-baseline-4625.png"><img src="../../img/senaryolar/05-kaba-kuvvet/01-baseline-4625.png" alt="" loading="lazy"></a>
+  <figcaption>Baseline: only 2 events with 4625 in 7 days, both Logon Type 2 (my own logon at the screen). No failed network logons.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/05-kaba-kuvvet/03-4625-4740.png"><img src="../../img/senaryolar/05-kaba-kuvvet/03-4625-4740.png" alt="" loading="lazy"></a>
+  <figcaption>First attack: 10 wrong passwords, followed by 4740. The account was locked by Windows' default lockout policy.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/05-kaba-kuvvet/05-tekrar-saldiri-testuser.png"><img src="../../img/senaryolar/05-kaba-kuvvet/05-tekrar-saldiri-testuser.png" alt="" loading="lazy"></a>
+  <figcaption>Repeat attack with the non-existent <code>testuser</code>: the account doesn't lock, but it still produces 4625.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/05-kaba-kuvvet/06-manuel-dogrulama-27.png"><img src="../../img/senaryolar/05-kaba-kuvvet/06-manuel-dogrulama-27.png" alt="" loading="lazy"></a>
+  <figcaption>The alert query run manually: <code>192.168.56.50</code>, 27 failed logons.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/05-kaba-kuvvet/08-triggered-alert.png"><img src="../../img/senaryolar/05-kaba-kuvvet/08-triggered-alert.png" alt="" loading="lazy"></a>
+  <figcaption>The scheduled alert triggered: High, 2026-11-22 20:00:01.</figcaption>
+</figure>
+
+    <div class="read">
+    <h2>Test evidence</h2>
+    <div class="table-scroll"><table>
+      <tr><th>Test</th><th>Time (VM clock)</th><th>Result</th></tr>
+      <tr><td>Attack 1</td><td>2026-11-22 19:01</td><td>11× 4625 + 1× 4740; account locked</td></tr><tr><td>Manual detection query</td><td>2026-11-22 19:52</td><td><code>192.168.56.50</code>, count 27</td></tr><tr><td>Repeat attack + alert</td><td>2026-11-22 20:00</td><td>Alert triggered (Triggered Alerts, High)</td></tr>
+    </table></div>
+
+    <h2>Lesson learned</h2>
+    <p>I was glad to see that Windows has a lockout threshold like this, because it makes the attack a lot harder. But the lockout only protects the account. It doesn't block the attacker's IP, and the attacker can keep trying other accounts. Windows has its own defenses against attacks too, and I need to write my detections with them in mind. That's also why I based my threshold on the lockout threshold.</p>
+
+    <p class="small muted">Full details (data sources, limitations, analyst next steps; in Turkish): <a href="https://github.com/fadilyeren/soc-home-lab/blob/main/detections/05-kaba-kuvvet-smb.md">detections/05-kaba-kuvvet-smb.md</a></p>
+
+    <nav class="next-prev"><a href="04-run-anahtari.html">← Persistence via Run keys</a><a href="../#scenarios">All scenarios →</a></nav>
+    </div>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p>All tests were run in my own isolated lab. No real malware was used.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Discovery commands · SOC Home Lab</title>
+  <link rel="stylesheet" href="../../css/style.css">
+  <link rel="alternate" hreflang="tr" href="../../senaryolar/01-kesif.html">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a href="../">SOC Home Lab</a>
+      <nav>
+        <a href="../#scenarios">Scenarios</a>
+        <a href="https://github.com/fadilyeren/soc-home-lab">GitHub</a>
+        <a class="lang" href="../../senaryolar/01-kesif.html" lang="tr" hreflang="tr" title="Türkçe">TR</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="read">
+    <p class="back"><a href="../#scenarios">← Scenarios</a></p>
+    <h1>01 · Discovery commands</h1>
+    <ul class="meta"><li>T1033</li><li>T1087.001</li><li>T1082</li><li>status: tuned</li></ul>
+    <p class="lead">Three or more different local discovery tools (<code>whoami</code>, <code>net</code>, <code>systeminfo</code>, <code>cmdkey</code>) run on the same machine within 3 minutes.</p>
+
+    <h2>Attack</h2>
+    <pre><code>Invoke-AtomicTest T1033 -TestNumbers 7
+Invoke-AtomicTest T1087.001 -TestNumbers 8
+Invoke-AtomicTest T1082 -TestNumbers 1</code></pre>
+
+    <h2>Detection (SPL)</h2>
+    <h3>Final version</h3>
+<pre><code>index=sysmon EventID=1 Image IN (*\\whoami.exe, *\\net.exe, *\\systeminfo.exe, *\\cmdkey.exe)
+| sort _time
+| streamstats time_window=3m dc(Image) as komutlar by host
+| table _time, host, Image, komutlar
+| where komutlar &gt; 2</code></pre>
+
+
+    <h2>False positives and tuning</h2>
+    <p>The broad search returned 7 <code>whoami</code> events I didn't expect, even though none of the tests ran <code>whoami</code>. Looking at the parent process ID, I saw they all came from the PowerShell that launched the test commands: Atomic Red Team runs its own <code>whoami</code> 1-2 seconds before each test. This surprised me the most, because it behaves just like an attacker: it first checks who it is, then acts accordingly.</p>
+    <p>I still kept <code>whoami</code> in the list, because real attackers use it a lot too. A <code>whoami</code> running on its own doesn't trigger the rule, because the rule counts different tools. I didn't count <code>net1.exe</code>: <code>net.exe</code> starts it every time it runs, so every command would be counted twice.</p>
+
+    <h2>Fixes</h2>
+    <p>In my first attempt I used <code>bin _time span=10m</code>. A fixed bucket rounds event times to the given span. That makes sense for visualization, but the 10-minute bucket merged two separate runs and split one of them in two. When I want to know what happened within a certain time, <code>streamstats</code> is a better choice: for each event, it looks at the events in the given window before it. Without <code>sort _time</code> the window looked the wrong way, because Splunk returns results newest first. Finally I added <code>by host</code> so each machine is counted separately.</p>
+    </div>
+
+    <h2>Screenshots</h2>
+    <figure>
+  <a href="../../img/senaryolar/01-kesif/01-atomic-t1033-t1087.png"><img src="../../img/senaryolar/01-kesif/01-atomic-t1033-t1087.png" alt="" loading="lazy"></a>
+  <figcaption>Atomic tests T1033-7 and T1087.001-8. <code>query user</code> fails because Windows 10 Home has no <code>query.exe</code>.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/01-kesif/06-whoami-parent.png"><img src="../../img/senaryolar/01-kesif/06-whoami-parent.png" alt="" loading="lazy"></a>
+  <figcaption>The tests don't run <code>whoami</code>; all 7 <code>whoami</code> events come from Atomic Red Team itself, before each test.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/01-kesif/08-bin-10m-tuzak.png"><img src="../../img/senaryolar/01-kesif/08-bin-10m-tuzak.png" alt="" loading="lazy"></a>
+  <figcaption>First attempt: <code>bin _time span=10m</code>. Fixed buckets group two separate runs incorrectly.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/01-kesif/11-tespit-son.png"><img src="../../img/senaryolar/01-kesif/11-tespit-son.png" alt="" loading="lazy"></a>
+  <figcaption>Final version: sliding window, <code>by host</code>, threshold of 3 different tools. Both runs were caught separately.</figcaption>
+</figure>
+
+    <div class="read">
+    <h2>Test evidence</h2>
+    <div class="table-scroll"><table>
+      <tr><th>Test</th><th>Time (VM clock)</th><th>Result</th></tr>
+      <tr><td>Run 1</td><td>2026-11-21 ~12:10:30 – 12:10:53</td><td>Caught at 12:10:42.135</td></tr><tr><td>Run 2</td><td>2026-11-21 12:18:47 – 12:20:44</td><td>Caught at 12:19:15.396</td></tr>
+    </table></div>
+
+    <h2>Lesson learned</h2>
+    <p>The threshold has to be chosen based on normal activity. If I alerted on 2 different tools, every admin who runs <code>whoami</code> followed by <code>net user</code> would trigger an alert. So I set the threshold to 3 different tools. There's no real user activity in my lab, so I chose this threshold by reasoning, not by measurement. It has a cost too: discovery slower than 3 minutes can be missed.</p>
+
+    <p class="small muted">Full details (data sources, limitations, analyst next steps; in Turkish): <a href="https://github.com/fadilyeren/soc-home-lab/blob/main/detections/01-kesif-komutlari.md">detections/01-kesif-komutlari.md</a></p>
+
+    <nav class="next-prev"><a href="../#scenarios">← All scenarios</a><a href="02-sifreli-powershell.html">Encoded PowerShell →</a></nav>
+    </div>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p>All tests were run in my own isolated lab. No real malware was used.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Şifrelenmiş PowerShell · SOC Home Lab</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="alternate" hreflang="en" href="../en/scenarios/02-sifreli-powershell.html">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a href="../">SOC Home Lab</a>
+      <nav>
+        <a href="../#senaryolar">Senaryolar</a>
+        <a href="https://github.com/fadilyeren/soc-home-lab">GitHub</a>
+        <a class="lang" href="../en/scenarios/02-sifreli-powershell.html" lang="en" hreflang="en" title="English">EN</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="read">
+    <p class="back"><a href="../#senaryolar">← Senaryolar</a></p>
+    <h1>02 · Şifrelenmiş PowerShell</h1>
+    <ul class="meta"><li>T1059.001</li><li>T1027</li><li>durum: ayıklanmış</li></ul>
+    <p class="lead"><code>powershell.exe</code>'nin Base64 ile kodlanmış bir komutla (<code>-EncodedCommand</code> ve kısaltmaları) başlatılması.</p>
+
+    <h2>Saldırı</h2>
+    <pre><code>Invoke-AtomicTest T1059.001 -TestNumbers 17
+
+# Tekrar testi, farklı yazılış
+powershell.exe -enc VwByAGkAdABlAC0ASABvAHMAdAAgACcAdABlAGsAcgBhAHIAIAB0AGUAcwB0AGkAJwA=</code></pre>
+
+    <h2>Tespit (SPL)</h2>
+    <h3>İlk geniş arama (203 olay)</h3>
+<pre><code>index=sysmon EventID=1 (CommandLine=*/e* OR CommandLine=*-e*)
+| table _time, Image, ParentImage, process_id, ParentProcessId, CommandLine</code></pre>
+<h3>Son sürüm (1 olay)</h3>
+<pre><code>index=sysmon EventID=1 Image=*\\powershell.exe CommandLine IN (&quot;*-e *&quot;, &quot;*-ec *&quot;, &quot;*-en *&quot;, &quot;*-enc *&quot;, &quot;*-EncodedCommand *&quot;)
+| table _time, Image, ParentImage, process_id, ParentProcessId, CommandLine</code></pre>
+<h3>4104 ile çözülmüş içerik</h3>
+<pre><code>index=&quot;wineventlog&quot; EventID=4104 ScriptBlockText=*Hello*
+| table _time, ScriptBlockText</code></pre>
+
+    
+    <h2>Yanlış alarmlar ve ayıklama</h2>
+    <p>İlk sorgum (<code>CommandLine=*-e*</code>) son 7 günde 203 olay getirdi. Önce sorguyu yanlış yazdığımı sandım. Sonra sorgunun doğru çalıştığını, yalnızca fazla geniş olduğunu fark ettim. Gelenlerin çoğu OneDrive'ın <code>FileCoAuth.exe</code> programı ve <code>-e</code> ile başlayan başka parametrelerdi. Aramayı yalnızca <code>powershell.exe</code> ile sınırlayınca 11 olay kaldı. Ama aralarında <code>-e</code> hiç geçmeyen olaylar da vardı: kendi PowerShell pencerem ve Windows telemetrisinin (<code>CompatTelRunner.exe</code>) çalıştırdığı betikler.</p>
+
+    <h2>Düzeltmeler</h2>
+    <p>Bu 11 olayın sebebi tırnaktı. Değerler tırnaksızken <code>*-e *</code> boşluktan ikiye bölünüyor, tek başına kalan <code>*</code> de her şeyle eşleşiyordu. Değerleri çift tırnağa alınca sonuç 1 olaya indi: yalnızca test. Bunu fark ettiğimde baya rahatladım, çünkü bu küçük ayrıntı yüzünden yanlış kararlar alabilirdim. Parametreden sonra bir boşluk da bıraktım ki <code>-ExecutionPolicy</code> gibi <code>-e</code> ile başlayan başka parametreler eşleşmesin.</p>
+    </div>
+
+    <h2>Ekran görüntüleri</h2>
+    <figure>
+  <a href="../img/senaryolar/02-sifreli-powershell/01-atomic-t1059-17.png"><img src="../img/senaryolar/02-sifreli-powershell/01-atomic-t1059-17.png" alt="" loading="lazy"></a>
+  <figcaption>Atomic testi T1059.001-17: <code>cmd.exe /c powershell.exe -e &lt;Base64&gt;</code>.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/02-sifreli-powershell/05-genis-joker-gurultu.png"><img src="../img/senaryolar/02-sifreli-powershell/05-genis-joker-gurultu.png" alt="" loading="lazy"></a>
+  <figcaption>Geniş joker: 7 günde 203 olay. OneDrive <code>FileCoAuth.exe</code> ve <code>-e</code> ile başlayan her parametre.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/02-sifreli-powershell/03-4104-katman1-gizli.png"><img src="../img/senaryolar/02-sifreli-powershell/03-4104-katman1-gizli.png" alt="" loading="lazy"></a>
+  <figcaption>4104, 1. katman: metin parçalanmış, <code>iex</code> adı <code>'ie{0}' -f 'x'</code> ile gizlenmiş.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/02-sifreli-powershell/04-4104-katman2-cozulmus.png"><img src="../img/senaryolar/02-sifreli-powershell/04-4104-katman2-cozulmus.png" alt="" loading="lazy"></a>
+  <figcaption>4104, 2. katman: asıl komut. Base64 elle çözülmeden görülüyor.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/02-sifreli-powershell/09-tekrar-testi-sonuc.png"><img src="../img/senaryolar/02-sifreli-powershell/09-tekrar-testi-sonuc.png" alt="" loading="lazy"></a>
+  <figcaption>Son sürüm: test (<code>-e</code>) ve tekrar testi (<code>-enc</code>) yakalandı, başka olay yok.</figcaption>
+</figure>
+
+    <div class="read">
+    <h2>Test kanıtı</h2>
+    <div class="table-scroll"><table>
+      <tr><th>Test</th><th>Zaman (VM saati)</th><th>Sonuç</th></tr>
+      <tr><td>T1059.001-17 (<code>-e</code>)</td><td>2026-11-22 14:15:41.685</td><td>Yakalandı (PID 5956)</td></tr><tr><td>Elle <code>-enc</code></td><td>2026-11-22 15:40:55.382</td><td>Yakalandı (PID 312)</td></tr>
+    </table></div>
+
+    <h2>Çıkarılan ders</h2>
+    <p>Komut satırında yalnızca Base64 görünüyordu. 4104 ise komutu her katmanda ayrı kaydetti ve son katmanda düz metin olarak <code>Write-Host 'Hello, from PowerShell!'</code> vardı. Bu düz metin olmasaydı sorguda aramakta cidden zorlanırdım.</p>
+    <p>Asıl dersim: sorguyu, saldırganın aynı komutu yazabileceği bütün yolları düşünerek yazmak. <code>-e</code>, <code>-ec</code>, <code>-en</code>, <code>-enc</code> ve <code>-EncodedCommand</code> listede var. Ama <code>/e</code>, <code>-enco</code> gibi yazılışlar ve PowerShell 7 (<code>pwsh.exe</code>) hâlâ dışarıda.</p>
+
+    <p class="small muted">Tüm ayrıntılar (veri kaynakları, sınırlamalar, analistin sonraki adımları): <a href="https://github.com/fadilyeren/soc-home-lab/blob/main/detections/02-sifreli-powershell.md">detections/02-sifreli-powershell.md</a></p>
+
+    <nav class="next-prev"><a href="01-kesif.html">← Keşif komutları</a><a href="03-yonetici-grubuna-ekleme.html">Administrators grubuna üye ekleme →</a></nav>
+    </div>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p>Tüm testler kendi izole lab'ımda yapıldı. Gerçek zararlı yazılım kullanılmadı.</p>
+    </div>
+  </footer>
+</body>
+</html>

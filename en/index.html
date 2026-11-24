@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SOC Home Lab</title>
+  <meta name="description" content="A SOC homelab built with Splunk, Sysmon and Atomic Red Team: 5 attack scenarios, SPL detections, false positive analysis and a scheduled alert.">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="alternate" hreflang="tr" href="../">
+  <link rel="alternate" hreflang="en" href="./">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a href="./">SOC Home Lab</a>
+      <nav>
+        <a href="#scenarios">Scenarios</a>
+        <a href="https://github.com/fadilyeren/soc-home-lab">GitHub</a>
+        <a class="lang" href="../" lang="tr" hreflang="tr" title="Türkçe">TR</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <h1>SOC Home Lab</h1>
+    <p class="lead">I built this lab to prepare myself for real environments by simulating events that happen in them. Using Splunk, Sysmon and Atomic Red Team, I ran five attacks, investigated the traces they left with SPL, and wrote a detection for each one.</p>
+    <p class="read">My lab had false positives too, just like a real environment. Most of my time went into filtering out logs other than the ones I wanted; dealing with that is also what I'm most proud of. On each page, next to the queries I wrote, I explain the mistakes I made and how I fixed them. I turned the brute-force detection into a scheduled alert and triggered it.</p>
+
+    <figure class="diagram" aria-labelledby="diagram-title">
+      <svg viewBox="0 0 910 320" role="img" aria-labelledby="diagram-title diagram-desc">
+        <title id="diagram-title">Lab architecture</title>
+        <desc id="diagram-desc">The Kali Linux attacker VM attacks the Windows 10 victim VM over SMB. The Universal Forwarder on the Windows VM sends Sysmon and Windows event logs over TCP 9997 to Splunk Enterprise on the host machine. All three are on the VirtualBox host-only network, 192.168.56.0/24.</desc>
+        <defs>
+          <marker id="ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path class="arrow" d="M0,0 L10,5 L0,10 z"/>
+          </marker>
+        </defs>
+
+        <rect class="zone" x="20" y="20" width="870" height="280" rx="10"/>
+        <text class="s" x="40" y="48">VirtualBox host-only network</text>
+        <text class="m" x="232" y="48">192.168.56.0/24</text>
+
+        <!-- Kali -->
+        <rect class="box" x="45" y="95" width="210" height="150" rx="8"/>
+        <text class="t" x="65" y="128">Kali Linux</text>
+        <text class="s" x="65" y="150">Attacker VM</text>
+        <text class="m" x="65" y="180">192.168.56.50</text>
+        <text class="m" x="65" y="202">netexec</text>
+
+        <!-- Windows -->
+        <rect class="box" x="350" y="75" width="230" height="190" rx="8"/>
+        <text class="t" x="370" y="108">Windows 10</text>
+        <text class="s" x="370" y="130">Victim VM</text>
+        <text class="m" x="370" y="160">192.168.56.102</text>
+        <text class="m" x="370" y="186">Sysmon · 4104 enabled</text>
+        <text class="m" x="370" y="208">Atomic Red Team</text>
+        <text class="m" x="370" y="230">Universal Forwarder</text>
+
+        <!-- Host -->
+        <rect class="box" x="670" y="95" width="200" height="150" rx="8"/>
+        <text class="t" x="690" y="128">Splunk Enterprise</text>
+        <text class="s" x="690" y="150">Host machine</text>
+        <text class="m" x="690" y="180">192.168.56.1</text>
+        <text class="m" x="690" y="202">wineventlog, sysmon</text>
+
+        <!-- Flows -->
+        <path class="flow" d="M255,170 L346,170" marker-end="url(#ok)"/>
+        <text class="flow-label" x="263" y="160">SMB 445</text>
+        <path class="flow" d="M580,170 L666,170" marker-end="url(#ok)"/>
+        <text class="flow-label" x="588" y="160">TCP 9997</text>
+        <text class="s" x="263" y="192">attack</text>
+        <text class="s" x="588" y="192">logs</text>
+      </svg>
+    </figure>
+    <p class="small muted">Scenarios 1-4 were run on the Windows VM with Atomic Red Team, scenario 5 from Kali over the network. Logs land in the <code>wineventlog</code> and <code>sysmon</code> indexes in Splunk.</p>
+
+    <h2 id="scenarios">Scenarios</h2>
+    <ul class="scenarios">
+      <li><a href="scenarios/01-kesif.html">
+        <span class="no">01</span>
+        <span class="title">Discovery commands</span>
+        <span class="ids">T1033 · T1087.001 · T1082</span>
+        <span class="desc">3 different discovery tools in 3 minutes. A sliding window with <code>dc(Image)</code>.</span>
+      </a></li>
+      <li><a href="scenarios/02-sifreli-powershell.html">
+        <span class="no">02</span>
+        <span class="title">Encoded PowerShell</span>
+        <span class="ids">T1059.001 · T1027</span>
+        <span class="desc"><code>-EncodedCommand</code> and its abbreviations. From 203 events to 1 in 7 days.</span>
+      </a></li>
+      <li><a href="scenarios/03-yonetici-grubuna-ekleme.html">
+        <span class="no">03</span>
+        <span class="title">Adding a member to Administrators</span>
+        <span class="ids">T1098 · T1136.001</span>
+        <span class="desc">4732 and the language-independent group SID <code>S-1-5-32-544</code>.</span>
+      </a></li>
+      <li><a href="scenarios/04-run-anahtari.html">
+        <span class="no">04</span>
+        <span class="title">Persistence via Run keys</span>
+        <span class="ids">T1547.001</span>
+        <span class="desc">Run, RunOnce and RunOnceEx with Sysmon 13. What to filter out and what to keep.</span>
+      </a></li>
+      <li><a href="scenarios/05-kaba-kuvvet.html">
+        <span class="no">05</span>
+        <span class="title">Brute force over SMB</span>
+        <span class="ids">T1110.001</span>
+        <span class="desc">netexec from Kali. A scheduled alert was set up and triggered.</span>
+      </a></li>
+    </ul>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p>All tests were run in my own isolated lab. No real malware was used.</p>
+      <p>Sysmon configuration: <a href="https://github.com/SwiftOnSecurity/sysmon-config">SwiftOnSecurity/sysmon-config</a> (CC BY 4.0). Detections, lab settings and scripts are <a href="https://github.com/fadilyeren/soc-home-lab">on GitHub</a> (documentation in Turkish).</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SMB üzerinden kaba kuvvet · SOC Home Lab</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="alternate" hreflang="en" href="../en/scenarios/05-kaba-kuvvet.html">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a href="../">SOC Home Lab</a>
+      <nav>
+        <a href="../#senaryolar">Senaryolar</a>
+        <a href="https://github.com/fadilyeren/soc-home-lab">GitHub</a>
+        <a class="lang" href="../en/scenarios/05-kaba-kuvvet.html" lang="en" hreflang="en" title="English">EN</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="read">
+    <p class="back"><a href="../#senaryolar">← Senaryolar</a></p>
+    <h1>05 · SMB üzerinden kaba kuvvet</h1>
+    <ul class="meta"><li>T1110.001</li><li class="on">durum: uyarı</li></ul>
+    <p class="lead">Tek bir kaynak IP'den kısa sürede çok sayıda başarısız ağ/RDP girişi (4625, Logon Type 3 ve 10).</p>
+
+    <h2>Saldırı</h2>
+    <pre><code># Kali (192.168.56.50) → Windows VM (192.168.56.102), yalnızca host-only ağ
+nxc smb 192.168.56.102 -u testuser -p ~/parolalar.txt</code></pre>
+
+    <h2>Tespit (SPL)</h2>
+    <h3>Tespit ve uyarı sorgusu</h3>
+<pre><code>index=wineventlog EventID=4625 Logon_Type IN (3,10)
+| stats count by src_ip
+| where count &gt; 9</code></pre>
+
+    <h2>Zamanlanmış uyarı</h2>
+<table>
+<tr><th>Ayar</th><th>Değer</th></tr>
+<tr><td>Tür</td><td>Scheduled, cron <code>*/5 * * * *</code></td></tr>
+<tr><td>Zaman aralığı</td><td>Last 5 minutes</td></tr>
+<tr><td>Tetikleme</td><td>Number of Results &gt; 0, Once</td></tr>
+<tr><td>Eylem</td><td>Add to Triggered Alerts, Severity High</td></tr>
+</table>
+
+    <h2>Yanlış alarmlar ve ayıklama</h2>
+    <p>Saldırıdan önce son 7 güne baktım: yalnızca 2 adet 4625 vardı, ikisi de benim ekrandan girişimdi (Logon Type 2). Hata kodu parolanın süresinin dolduğunu söylüyordu. Gerçekten de Windows o gün parola değiştirmemi istemişti. Ağ üzerinden başarısız giriş hiç yoktu. Kural yalnızca Logon Type 3 (ağ) ve 10 (RDP) girişlerine baktığı için bu ikisi zaten kapsam dışında. Saldırının izindeki olaylardan biri de parola denemesi değil, netexec'in kendi el sıkışmasıydı.</p>
+    <p>Gerçek bir ortamda olası bir yanlış alarm da var: eski parolayla çalışmaya devam eden bir servis, tek kaynaktan sürekli 4625 üretebilir. BOTS v2 verisinde böyle bir örnek görmüştüm: 10.0.1.220'den Administrator hesabına 85 deneme, hiç başarılı giriş yok.</p>
+
+    <h2>Düzeltmeler</h2>
+    <p>Hydra'nın SMB modülü yeni SMB sürümleriyle anlaşamadı, saldırıyı netexec ile yaptım. Hesap 10 denemede kilitlendi. Tekrar testlerini, kilitlenmeyen ve var olmayan bir hesapla (<code>testuser</code>) yaptım.</p>
+    <p>Uyarıyı önce her dakika çalışıp son 1 dakikaya bakacak şekilde kurdum, tetiklenmedi. Sorguyu kendim çalıştırdığımda sonuç veriyordu, yani sorun sorguda değildi. Logların Splunk'a gelme süresini düşününce 1 dakikanın yetmediğini anladım ve hem çalışma aralığını hem pencereyi 5 dakikaya çıkardım. Uyarı bir sonraki saldırıda tetiklendi.</p>
+    <p>Eşiği 10 seçtim, çünkü parolasını unutan normal bir kullanıcı en fazla 5-6 kez dener, Windows da kilitleme sınırını 10 seçmiş. Bunun bir bedeli var: kilitleme sınırı daha düşük olan bir makinede hesap 10'a varmadan kilitlenir ve kural saldırıyı kaçırabilir. 5 dakikalık pencereye yayılan yavaş bir saldırı da eşiğin altında kalabilir.</p>
+    </div>
+
+    <h2>Ekran görüntüleri</h2>
+    <figure>
+  <a href="../img/senaryolar/05-kaba-kuvvet/01-baseline-4625.png"><img src="../img/senaryolar/05-kaba-kuvvet/01-baseline-4625.png" alt="" loading="lazy"></a>
+  <figcaption>Baseline: 7 günde yalnızca 2 adet 4625, ikisi de Logon Type 2 (ekrandan kendi girişim). Ağdan başarısız giriş yok.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/05-kaba-kuvvet/03-4625-4740.png"><img src="../img/senaryolar/05-kaba-kuvvet/03-4625-4740.png" alt="" loading="lazy"></a>
+  <figcaption>İlk saldırı: 10 yanlış parola, ardından 4740. Hesap Windows'un varsayılan kilitleme politikasıyla kilitlendi.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/05-kaba-kuvvet/05-tekrar-saldiri-testuser.png"><img src="../img/senaryolar/05-kaba-kuvvet/05-tekrar-saldiri-testuser.png" alt="" loading="lazy"></a>
+  <figcaption>Tekrar saldırı var olmayan <code>testuser</code> ile: hesap kilitlenmiyor, yine 4625 üretiyor.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/05-kaba-kuvvet/06-manuel-dogrulama-27.png"><img src="../img/senaryolar/05-kaba-kuvvet/06-manuel-dogrulama-27.png" alt="" loading="lazy"></a>
+  <figcaption>Uyarı sorgusu elle: <code>192.168.56.50</code>, 27 başarısız giriş.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/05-kaba-kuvvet/08-triggered-alert.png"><img src="../img/senaryolar/05-kaba-kuvvet/08-triggered-alert.png" alt="" loading="lazy"></a>
+  <figcaption>Zamanlanmış uyarı tetiklendi: High, 2026-11-22 20:00:01.</figcaption>
+</figure>
+
+    <div class="read">
+    <h2>Test kanıtı</h2>
+    <div class="table-scroll"><table>
+      <tr><th>Test</th><th>Zaman (VM saati)</th><th>Sonuç</th></tr>
+      <tr><td>Saldırı 1</td><td>2026-11-22 19:01</td><td>11 adet 4625 + 1 adet 4740; hesap kilitlendi</td></tr><tr><td>Elle tespit sorgusu</td><td>2026-11-22 19:52</td><td><code>192.168.56.50</code>, count 27</td></tr><tr><td>Tekrar saldırı + uyarı</td><td>2026-11-22 20:00</td><td>Uyarı tetiklendi (Triggered Alerts, High)</td></tr>
+    </table></div>
+
+    <h2>Çıkarılan ders</h2>
+    <p>Windows'ta böyle bir kilitleme sınırı olduğunu görünce sevindim, çünkü saldırıyı epey zorlaştırıyor. Ama kilit yalnızca hesabı koruyor. Saldırganın IP'sini engellemiyor, saldırgan başka hesapları denemeye devam edebilir. Windows'un da saldırılara karşı önlemleri var ve tespitlerimi bunlara göre yazmam gerekiyor. Eşiğimi de bu yüzden kilitleme sınırına göre seçtim.</p>
+
+    <p class="small muted">Tüm ayrıntılar (veri kaynakları, sınırlamalar, analistin sonraki adımları): <a href="https://github.com/fadilyeren/soc-home-lab/blob/main/detections/05-kaba-kuvvet-smb.md">detections/05-kaba-kuvvet-smb.md</a></p>
+
+    <nav class="next-prev"><a href="04-run-anahtari.html">← Run anahtarıyla kalıcılık</a><a href="../#senaryolar">Tüm senaryolar →</a></nav>
+    </div>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p>Tüm testler kendi izole lab'ımda yapıldı. Gerçek zararlı yazılım kullanılmadı.</p>
+    </div>
+  </footer>
+</body>
+</html>

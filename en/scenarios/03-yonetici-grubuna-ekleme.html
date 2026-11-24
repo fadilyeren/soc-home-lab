@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Adding a member to Administrators · SOC Home Lab</title>
+  <link rel="stylesheet" href="../../css/style.css">
+  <link rel="alternate" hreflang="tr" href="../../senaryolar/03-yonetici-grubuna-ekleme.html">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a href="../">SOC Home Lab</a>
+      <nav>
+        <a href="../#scenarios">Scenarios</a>
+        <a href="https://github.com/fadilyeren/soc-home-lab">GitHub</a>
+        <a class="lang" href="../../senaryolar/03-yonetici-grubuna-ekleme.html" lang="tr" hreflang="tr" title="Türkçe">TR</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="read">
+    <p class="back"><a href="../#scenarios">← Scenarios</a></p>
+    <h1>03 · Adding a member to Administrators</h1>
+    <ul class="meta"><li>T1098</li><li>T1136.001</li><li>status: tuned</li></ul>
+    <p class="lead">An account being added to the local Administrators group, matched on the group's language-independent SID (<code>S-1-5-32-544</code>).</p>
+
+    <h2>Attack</h2>
+    <pre><code>Invoke-AtomicTest T1136.001 -TestNumbers 8
+net localgroup administrators
+Invoke-AtomicTest T1136.001 -TestNumbers 8 -Cleanup</code></pre>
+
+    <h2>Detection (SPL)</h2>
+    <h3>Final version</h3>
+<pre><code>index=wineventlog EventID=4732 TargetSid=S-1-5-32-544
+| table _time, EventID, src_user, user, Group_Name, TargetSid</code></pre>
+
+
+    <h2>False positives and tuning</h2>
+    <p>One account creation left three events in the Security log: 4720 (account created), 4732 for the Users group and 4732 for the Administrators group. When I first saw the Users addition, I thought the attacker added the account to Users first and then to Administrators to avoid attention. Then I learned Windows does this itself: every new local account is added to the Users group automatically. If I alerted on every 4732, every account creation would raise an alert. What really mattered to us was the addition to Administrators, because members of this group have far more privileges. The rule only looks at that. There were 2 events in the last 7 days, both tests.</p>
+
+    <h2>Fixes</h2>
+    <p>I searched for the group by its SID, not its name. The group name can be Turkish on some machines ("Yöneticiler") or in other languages on others, but the SID of the Administrators group (<code>S-1-5-32-544</code>) is the same on every machine. I first wrote <code>TargetSid=*-544</code>, then removed the leading wildcard and used the full SID.</p>
+    <p>I used the Security log instead of Sysmon because I wanted to see exactly what the attacker did. Sysmon only shows that <code>net.exe</code> ran. If the account is added with PowerShell, <code>net.exe</code> never runs. Windows writes 4732 no matter how the member was added.</p>
+    </div>
+
+    <h2>Screenshots</h2>
+    <figure>
+  <a href="../../img/senaryolar/03-yonetici-hesap/01-atomic-t1136-8.png"><img src="../../img/senaryolar/03-yonetici-hesap/01-atomic-t1136-8.png" alt="" loading="lazy"></a>
+  <figcaption>Atomic test T1136.001-8: the <code>T1136.001_Admin</code> account is created and added to Administrators.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/03-yonetici-hesap/02-4720-4732.png"><img src="../../img/senaryolar/03-yonetici-hesap/02-4720-4732.png" alt="" loading="lazy"></a>
+  <figcaption>One account creation, three events: 4720 (account), 4732 Users (added automatically by Windows), 4732 Administrators.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/03-yonetici-hesap/04-tespit-son.png"><img src="../../img/senaryolar/03-yonetici-hesap/04-tespit-son.png" alt="" loading="lazy"></a>
+  <figcaption>Final version: only the Administrators SID. 2 events in 7 days, both tests.</figcaption>
+</figure>
+
+    <div class="read">
+    <h2>Test evidence</h2>
+    <div class="table-scroll"><table>
+      <tr><th>Test</th><th>Time (VM clock)</th><th>Result</th></tr>
+      <tr><td>Manual positive control</td><td>2026-11-20 15:02:09.677</td><td>Caught</td></tr><tr><td>T1136.001-8</td><td>2026-11-22 15:46:33.670</td><td>Caught</td></tr>
+    </table></div>
+
+    <h2>Lesson learned</h2>
+    <p>I need to learn better what Windows normally does. That way, in my next analysis, I can recognize that something was done by Windows and not by the attacker. The new account being added to the Users group is a good example: at first glance it looked like an attacker's step, but it was Windows' own behavior.</p>
+
+    <p class="small muted">Full details (data sources, limitations, analyst next steps; in Turkish): <a href="https://github.com/fadilyeren/soc-home-lab/blob/main/detections/03-yonetici-grubuna-ekleme.md">detections/03-yonetici-grubuna-ekleme.md</a></p>
+
+    <nav class="next-prev"><a href="02-sifreli-powershell.html">← Encoded PowerShell</a><a href="04-run-anahtari.html">Persistence via Run keys →</a></nav>
+    </div>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p>All tests were run in my own isolated lab. No real malware was used.</p>
+    </div>
+  </footer>
+</body>
+</html>

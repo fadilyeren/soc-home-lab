@@ -1,0 +1,173 @@
+/* SOC Home Lab — tek dosyalık stil. Renkler :root'ta.
+   Varsayılan: krem + kahverengi. Önceki koyu tema aşağıda [data-tema="koyu"] altında saklı;
+   geri dönmek için <html> etiketine data-tema="koyu" eklemek yeter. */
+
+:root {
+  color-scheme: light;
+
+  --bg: oklch(96.5% 0.018 85);
+  --bg-soft: oklch(93.5% 0.024 80);
+  --text: oklch(23% 0.045 50);
+  --text-2: oklch(39% 0.05 52);
+  --line: oklch(86% 0.03 75);
+  --line-strong: oklch(62% 0.06 55);
+  --accent: oklch(41% 0.10 45);
+  --code-bg: oklch(93% 0.025 80);
+  --brown: oklch(31% 0.05 50);
+  --brown-deep: oklch(25% 0.04 50);
+  --on-brown: oklch(95% 0.02 85);
+  --on-brown-2: oklch(82% 0.04 75);
+  --draft-bg: oklch(92% 0.05 85);
+  --draft-line: oklch(75% 0.09 80);
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  --read: 46rem;
+  --wide: 64rem;
+}
+
+/* Önceki koyu tema (saklı) */
+:root[data-tema="koyu"] {
+  color-scheme: dark;
+
+  --bg: oklch(16% 0.006 250);
+  --bg-soft: oklch(19% 0.007 250);
+  --text: oklch(92% 0.005 250);
+  --text-2: oklch(70% 0.01 250);
+  --line: oklch(28% 0.008 250);
+  --line-strong: oklch(40% 0.01 250);
+  --accent: oklch(74% 0.11 200);
+  --brown: oklch(12% 0.006 250);
+  --brown-deep: oklch(20% 0.007 250);
+  --on-brown: oklch(92% 0.005 250);
+  --on-brown-2: oklch(70% 0.01 250);
+  --code-bg: oklch(20% 0.007 250);
+  --draft-bg: oklch(26% 0.04 85);
+  --draft-line: oklch(50% 0.08 85);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 1rem/1.65 var(--font);
+}
+
+img, svg { max-width: 100%; display: block; }
+
+a { color: var(--accent); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+h1, h2, h3 { line-height: 1.25; text-wrap: balance; font-weight: 600; }
+h1 { font-size: clamp(1.75rem, 1.3rem + 2vw, 2.4rem); letter-spacing: -0.02em; margin: 0 0 1rem; }
+h2 { font-size: 1.35rem; letter-spacing: -0.01em; margin: 3.5rem 0 1rem; padding-top: 1.5rem; border-top: 2px solid var(--line-strong); }
+h3 { font-size: 1.05rem; margin: 2rem 0 0.5rem; }
+p, li { text-wrap: pretty; }
+
+/* Yerleşim */
+.wrap { max-width: var(--wide); margin: 0 auto; padding: 0 16px; }
+.read { max-width: var(--read); }
+
+.site-head {
+  background: var(--brown);
+}
+.site-head .wrap {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+  padding-top: 1rem; padding-bottom: 1rem;
+}
+.site-head a { color: var(--on-brown); text-decoration: none; font-weight: 600; }
+.site-head nav a { font-weight: 400; color: var(--on-brown-2); margin-left: 1.25rem; }
+.site-head nav a:hover { color: var(--on-brown); }
+.site-head nav a.lang {
+  font: 500 0.8rem var(--mono); letter-spacing: 0.04em;
+  border: 1px solid var(--on-brown-2); border-radius: 6px; padding: 0.15rem 0.45rem;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.site-head nav a.lang:hover { background: var(--on-brown); color: var(--brown); border-color: var(--on-brown); }
+
+main { padding: 3.5rem 0 5rem; }
+
+.lead { font-size: 1.125rem; color: var(--text-2); max-width: var(--read); }
+.muted { color: var(--text-2); }
+.small { font-size: 0.875rem; }
+
+/* Mimari şema */
+.diagram { margin: 2.5rem 0 1rem; padding: 1.5rem; border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
+.diagram svg { min-width: 640px; width: 100%; height: auto; }
+.diagram .box { fill: var(--bg); stroke: var(--line-strong); stroke-width: 1.5; }
+.diagram .zone { fill: var(--bg-soft); stroke: var(--line-strong); stroke-dasharray: 5 4; }
+.diagram .t { fill: var(--text); font: 600 15px var(--font); }
+.diagram .s { fill: var(--text-2); font: 400 13px var(--font); }
+.diagram .m { fill: var(--text-2); font: 400 12.5px var(--mono); }
+.diagram .flow { stroke: var(--accent); stroke-width: 2; fill: none; }
+.diagram .flow-label { fill: var(--accent); font: 500 12.5px var(--mono); }
+.diagram .arrow { fill: var(--accent); }
+
+/* Senaryo listesi (giriş sayfası) */
+.scenarios { list-style: none; padding: 0; margin: 1rem 0 0; border-top: 1px solid var(--line); }
+.scenarios li { border-bottom: 1px solid var(--line); }
+.scenarios a {
+  display: grid; grid-template-columns: 2.5rem 1fr auto; gap: 0.25rem 1rem;
+  padding: 1.25rem 0.25rem; color: var(--text); text-decoration: none;
+  transition: background-color 140ms ease;
+}
+.scenarios a:hover { background: var(--bg-soft); }
+.scenarios .no { color: var(--accent); font: 500 0.95rem var(--mono); padding-top: 0.1rem; }
+.scenarios .title { font-weight: 600; }
+.scenarios .desc { grid-column: 2; color: var(--text-2); font-size: 0.95rem; }
+.scenarios .ids { grid-column: 3; grid-row: 1; font: 400 0.8rem var(--mono); color: var(--text-2); text-align: right; white-space: nowrap; }
+
+/* Senaryo sayfası */
+.back { font-size: 0.9rem; }
+.meta { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 1.5rem; padding: 0; list-style: none; }
+.meta li { font: 400 0.8rem var(--mono); border: 1px solid var(--line); border-radius: 6px; padding: 0.2rem 0.5rem; color: var(--text-2); }
+.meta li.on { color: var(--accent); border-color: currentColor; }
+
+pre, code { font-family: var(--mono); font-size: 0.875rem; }
+code { background: var(--code-bg); padding: 0.1rem 0.3rem; border-radius: 4px; }
+pre {
+  background: var(--brown-deep); color: var(--on-brown); border-radius: 8px;
+  padding: 1rem 1.1rem; overflow-x: auto; line-height: 1.55;
+}
+pre code { background: none; padding: 0; color: inherit; }
+pre { scrollbar-color: var(--on-brown-2) var(--brown-deep); }
+
+figure { margin: 2rem 0; }
+figure img { border: 1px solid var(--line); border-radius: 6px; width: 100%; height: auto; }
+figure a { display: block; }
+figcaption { margin-top: 0.6rem; font-size: 0.875rem; color: var(--text-2); max-width: var(--read); }
+
+table { border-collapse: collapse; width: 100%; font-size: 0.925rem; margin: 1rem 0; }
+th, td { text-align: left; padding: 0.55rem 0.75rem 0.55rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--text-2); font-size: 0.85rem; }
+.table-scroll { overflow-x: auto; }
+
+/* Taslak kutusu: yayından önce kaldırılacak */
+.draft {
+  background: var(--draft-bg); border: 1px dashed var(--draft-line); border-radius: 8px;
+  padding: 0.9rem 1.1rem; margin: 1rem 0; font-size: 0.925rem;
+}
+.draft strong:first-child { display: block; margin-bottom: 0.25rem; }
+.draft ul { margin: 0.25rem 0 0; padding-left: 1.2rem; }
+
+.next-prev { display: flex; justify-content: space-between; gap: 1rem; margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--line); font-size: 0.95rem; }
+
+.site-foot { background: var(--brown); padding: 1.5rem 0 2.5rem; font-size: 0.875rem; color: var(--on-brown-2); }
+.site-foot a { color: var(--on-brown); }
+.site-foot p { margin: 0.25rem 0; }
+
+@media (max-width: 640px) {
+  main { padding-top: 2.25rem; }
+  .scenarios a { grid-template-columns: 2rem 1fr; }
+  .scenarios .ids { grid-column: 2; grid-row: auto; text-align: left; white-space: normal; }
+  .site-head nav a { margin-left: 0.75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

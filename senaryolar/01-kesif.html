@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keşif komutları · SOC Home Lab</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="alternate" hreflang="en" href="../en/scenarios/01-kesif.html">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a href="../">SOC Home Lab</a>
+      <nav>
+        <a href="../#senaryolar">Senaryolar</a>
+        <a href="https://github.com/fadilyeren/soc-home-lab">GitHub</a>
+        <a class="lang" href="../en/scenarios/01-kesif.html" lang="en" hreflang="en" title="English">EN</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="read">
+    <p class="back"><a href="../#senaryolar">← Senaryolar</a></p>
+    <h1>01 · Keşif komutları</h1>
+    <ul class="meta"><li>T1033</li><li>T1087.001</li><li>T1082</li><li>durum: ayıklanmış</li></ul>
+    <p class="lead">Aynı makinede 3 dakika içinde en az 3 farklı yerel keşif aracının (<code>whoami</code>, <code>net</code>, <code>systeminfo</code>, <code>cmdkey</code>) çalıştırılması.</p>
+
+    <h2>Saldırı</h2>
+    <pre><code>Invoke-AtomicTest T1033 -TestNumbers 7
+Invoke-AtomicTest T1087.001 -TestNumbers 8
+Invoke-AtomicTest T1082 -TestNumbers 1</code></pre>
+
+    <h2>Tespit (SPL)</h2>
+    <h3>Son sürüm</h3>
+<pre><code>index=sysmon EventID=1 Image IN (*\\whoami.exe, *\\net.exe, *\\systeminfo.exe, *\\cmdkey.exe)
+| sort _time
+| streamstats time_window=3m dc(Image) as komutlar by host
+| table _time, host, Image, komutlar
+| where komutlar &gt; 2</code></pre>
+
+    
+    <h2>Yanlış alarmlar ve ayıklama</h2>
+    <p>Geniş aramada beklemediğim 7 <code>whoami</code> çıktı, oysa testlerin hiçbiri <code>whoami</code> çalıştırmıyordu. Üst süreç kimliğine bakınca hepsinin test komutlarını başlatan PowerShell'den geldiğini gördüm: Atomic Red Team her testten 1-2 saniye önce kendi <code>whoami</code>'sini çalıştırıyor. Beni en çok bu şaşırttı, çünkü aynı bir saldırgan gibi davranıyor: önce kim olduğuna bakıyor, sonra ona göre hareket ediyor.</p>
+    <p><code>whoami</code>'yi yine de listede bıraktım, çünkü gerçek saldırganlar da onu çok kullanıyor. Tek başına çalışan bir <code>whoami</code> kuralı tetiklemiyor, çünkü kural farklı araçların sayısına bakıyor. <code>net1.exe</code>'yi saymadım: <code>net.exe</code> her çalıştığında onu da başlatıyor, her komut iki kez sayılırdı.</p>
+
+    <h2>Düzeltmeler</h2>
+    <p>İlk denemede <code>bin _time span=10m</code> kullandım. Sabit kutu, olayların saatini belirtilen süreye yuvarlıyor. Bu görselleştirme için mantıklı, ama 10 dakikalık kutu iki ayrı çalıştırmayı birleştirdi, birini de ikiye böldü. Belli bir süre içinde ne olduğuna bakmak istediğimde <code>streamstats</code> daha iyi bir seçim: her olay için, o olaydan önceki belirtilen süredeki olaylara bakıyor. <code>sort _time</code> eklemeden pencere ters yöne bakıyordu, çünkü Splunk sonuçları yeniden eskiye getiriyor. Son olarak <code>by host</code> ekledim ki her makine ayrı sayılsın.</p>
+    </div>
+
+    <h2>Ekran görüntüleri</h2>
+    <figure>
+  <a href="../img/senaryolar/01-kesif/01-atomic-t1033-t1087.png"><img src="../img/senaryolar/01-kesif/01-atomic-t1033-t1087.png" alt="" loading="lazy"></a>
+  <figcaption>Atomic testleri T1033-7 ve T1087.001-8. Windows 10 Home'da <code>query.exe</code> olmadığı için <code>query user</code> hata veriyor.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/01-kesif/06-whoami-parent.png"><img src="../img/senaryolar/01-kesif/06-whoami-parent.png" alt="" loading="lazy"></a>
+  <figcaption>Testler <code>whoami</code> çalıştırmıyor; 7 <code>whoami</code> olayının hepsi Atomic Red Team'in kendisinden, her testten önce.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/01-kesif/08-bin-10m-tuzak.png"><img src="../img/senaryolar/01-kesif/08-bin-10m-tuzak.png" alt="" loading="lazy"></a>
+  <figcaption>İlk deneme: <code>bin _time span=10m</code>. Sabit kutular iki ayrı çalıştırmayı yanlış grupluyor.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/01-kesif/11-tespit-son.png"><img src="../img/senaryolar/01-kesif/11-tespit-son.png" alt="" loading="lazy"></a>
+  <figcaption>Son sürüm: kayan pencere, <code>by host</code>, eşik 3 farklı araç. İki çalıştırma ayrı ayrı yakalandı.</figcaption>
+</figure>
+
+    <div class="read">
+    <h2>Test kanıtı</h2>
+    <div class="table-scroll"><table>
+      <tr><th>Test</th><th>Zaman (VM saati)</th><th>Sonuç</th></tr>
+      <tr><td>Çalıştırma 1</td><td>2026-11-21 ~12:10:30 – 12:10:53</td><td>12:10:42.135'te yakalandı</td></tr><tr><td>Çalıştırma 2</td><td>2026-11-21 12:18:47 – 12:20:44</td><td>12:19:15.396'da yakalandı</td></tr>
+    </table></div>
+
+    <h2>Çıkarılan ders</h2>
+    <p>Eşiği normal trafiğe göre seçmek gerekiyor. 2 farklı araçta alarm verseydim, <code>whoami</code> ardından <code>net user</code> çalıştıran her yönetici alarm üretirdi. Bu yüzden eşiği 3 farklı araç yaptım. Lab'da gerçek kullanıcı trafiği olmadığı için bu eşiği ölçerek değil, mantıkla seçtim. Bedeli de var: 3 dakikadan yavaş yapılan bir keşif kaçabilir.</p>
+
+    <p class="small muted">Tüm ayrıntılar (veri kaynakları, sınırlamalar, analistin sonraki adımları): <a href="https://github.com/fadilyeren/soc-home-lab/blob/main/detections/01-kesif-komutlari.md">detections/01-kesif-komutlari.md</a></p>
+
+    <nav class="next-prev"><a href="../#senaryolar">← Tüm senaryolar</a><a href="02-sifreli-powershell.html">Şifrelenmiş PowerShell →</a></nav>
+    </div>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p>Tüm testler kendi izole lab'ımda yapıldı. Gerçek zararlı yazılım kullanılmadı.</p>
+    </div>
+  </footer>
+</body>
+</html>

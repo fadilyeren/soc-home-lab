@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administrators grubuna üye ekleme · SOC Home Lab</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="alternate" hreflang="en" href="../en/scenarios/03-yonetici-grubuna-ekleme.html">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a href="../">SOC Home Lab</a>
+      <nav>
+        <a href="../#senaryolar">Senaryolar</a>
+        <a href="https://github.com/fadilyeren/soc-home-lab">GitHub</a>
+        <a class="lang" href="../en/scenarios/03-yonetici-grubuna-ekleme.html" lang="en" hreflang="en" title="English">EN</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="read">
+    <p class="back"><a href="../#senaryolar">← Senaryolar</a></p>
+    <h1>03 · Administrators grubuna üye ekleme</h1>
+    <ul class="meta"><li>T1098</li><li>T1136.001</li><li>durum: ayıklanmış</li></ul>
+    <p class="lead">Bir hesabın yerel Administrators grubuna eklenmesi, grubun dilden bağımsız SID'i (<code>S-1-5-32-544</code>) üzerinden.</p>
+
+    <h2>Saldırı</h2>
+    <pre><code>Invoke-AtomicTest T1136.001 -TestNumbers 8
+net localgroup administrators
+Invoke-AtomicTest T1136.001 -TestNumbers 8 -Cleanup</code></pre>
+
+    <h2>Tespit (SPL)</h2>
+    <h3>Son sürüm</h3>
+<pre><code>index=wineventlog EventID=4732 TargetSid=S-1-5-32-544
+| table _time, EventID, src_user, user, Group_Name, TargetSid</code></pre>
+
+    
+    <h2>Yanlış alarmlar ve ayıklama</h2>
+    <p>Bir hesap açılışı Security günlüğünde üç olay bıraktı: 4720 (hesap açıldı), Users grubu için 4732 ve Administrators grubu için 4732. Users'a eklemeyi ilk gördüğümde, saldırganın dikkat çekmemek için hesabı önce Users'a, sonra Administrators'a aldığını düşündüm. Sonra bunu Windows'un kendisinin yaptığını öğrendim: her yeni yerel hesap otomatik olarak Users grubuna ekleniyor. Bütün 4732'lerde alarm verseydim, her hesap açılışı bir alarm üretirdi. Bizim için asıl önemli olan Administrators grubuna eklenmesiydi, çünkü bu gruptakilerin yetkileri çok daha fazla. Kural yalnızca ona bakıyor. Son 7 günde 2 olay çıktı, ikisi de testti.</p>
+
+    <h2>Düzeltmeler</h2>
+    <p>Grubu adıyla değil SID'iyle aradım. Grup adı bazı makinelerde Türkçe ("Yöneticiler"), bazılarında başka dillerde olabilir, ama Administrators grubunun SID'i (<code>S-1-5-32-544</code>) tüm makinelerde aynı. Önce <code>TargetSid=*-544</code> yazdım, sonra baştaki jokeri kaldırıp tam SID'e geçtim.</p>
+    <p>Sysmon yerine Security günlüğüne baktım, çünkü saldırganın tam olarak ne yaptığını görmek istedim. Sysmon yalnızca <code>net.exe</code>'nin çalıştığını gösterir. Hesap PowerShell ile eklenirse <code>net.exe</code> hiç çalışmaz. 4732'yi ise Windows, ekleme hangi yolla yapılırsa yapılsın yazar.</p>
+    </div>
+
+    <h2>Ekran görüntüleri</h2>
+    <figure>
+  <a href="../img/senaryolar/03-yonetici-hesap/01-atomic-t1136-8.png"><img src="../img/senaryolar/03-yonetici-hesap/01-atomic-t1136-8.png" alt="" loading="lazy"></a>
+  <figcaption>Atomic testi T1136.001-8: <code>T1136.001_Admin</code> hesabı açılıp Administrators'a ekleniyor.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/03-yonetici-hesap/02-4720-4732.png"><img src="../img/senaryolar/03-yonetici-hesap/02-4720-4732.png" alt="" loading="lazy"></a>
+  <figcaption>Bir hesap açılışı üç olay: 4720 (hesap), 4732 Users (Windows otomatik ekliyor), 4732 Administrators.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/03-yonetici-hesap/04-tespit-son.png"><img src="../img/senaryolar/03-yonetici-hesap/04-tespit-son.png" alt="" loading="lazy"></a>
+  <figcaption>Son sürüm: yalnızca Administrators SID'i. 7 günde 2 olay, ikisi de test.</figcaption>
+</figure>
+
+    <div class="read">
+    <h2>Test kanıtı</h2>
+    <div class="table-scroll"><table>
+      <tr><th>Test</th><th>Zaman (VM saati)</th><th>Sonuç</th></tr>
+      <tr><td>Elle pozitif kontrol</td><td>2026-11-20 15:02:09.677</td><td>Yakalandı</td></tr><tr><td>T1136.001-8</td><td>2026-11-22 15:46:33.670</td><td>Yakalandı</td></tr>
+    </table></div>
+
+    <h2>Çıkarılan ders</h2>
+    <p>Windows'un normalde neler yaptığını daha iyi öğrenmem gerekiyor. Böylece bir sonraki analizimde, gördüğüm şeyi saldırganın değil Windows'un yaptığını fark edebilirim. Yeni hesabın Users grubuna alınması bunun iyi bir örneği: ilk bakışta saldırganın bir adımı gibi göründü, ama Windows'un kendi davranışıydı.</p>
+
+    <p class="small muted">Tüm ayrıntılar (veri kaynakları, sınırlamalar, analistin sonraki adımları): <a href="https://github.com/fadilyeren/soc-home-lab/blob/main/detections/03-yonetici-grubuna-ekleme.md">detections/03-yonetici-grubuna-ekleme.md</a></p>
+
+    <nav class="next-prev"><a href="02-sifreli-powershell.html">← Şifrelenmiş PowerShell</a><a href="04-run-anahtari.html">Run anahtarıyla kalıcılık →</a></nav>
+    </div>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p>Tüm testler kendi izole lab'ımda yapıldı. Gerçek zararlı yazılım kullanılmadı.</p>
+    </div>
+  </footer>
+</body>
+</html>

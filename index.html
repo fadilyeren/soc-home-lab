@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SOC Home Lab</title>
+  <meta name="description" content="Splunk, Sysmon ve Atomic Red Team ile kurulan bir SOC homelab'ı: 5 saldırı senaryosu, SPL tespitleri, yanlış alarm analizi ve zamanlanmış uyarı.">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="alternate" hreflang="tr" href="./">
+  <link rel="alternate" hreflang="en" href="en/">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a href="./">SOC Home Lab</a>
+      <nav>
+        <a href="#senaryolar">Senaryolar</a>
+        <a href="https://github.com/fadilyeren/soc-home-lab">GitHub</a>
+        <a class="lang" href="en/" lang="en" hreflang="en" title="English">EN</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <h1>SOC Home Lab</h1>
+    <p class="lead">Bu lab'ı, gerçek ortamda olan olayları taklit ederek kendimi gerçek bir SOC ortamına hazırlamak için kurdum. Splunk, Sysmon ve Atomic Red Team ile beş saldırı çalıştırdım, bıraktıkları izi SPL ile inceledim ve her biri için bir tespit yazdım.</p>
+    <p class="read">Lab'ımda da gerçek ortamdaki gibi yanlış alarmlar vardı. Zamanımın çoğu, istediğim loglar dışındakileri ayıklamakla geçti; en çok gurur duyduğum şey de bununla baş etmek oldu. Her sayfada yazdığım sorguların yanında yaptığım hataları ve onları nasıl düzelttiğimi de anlattım. Kaba kuvvet tespitini zamanlanmış uyarıya çevirip tetikledim.</p>
+
+    <figure class="diagram" aria-labelledby="mimari-baslik">
+      <svg viewBox="0 0 910 320" role="img" aria-labelledby="mimari-baslik mimari-aciklama">
+        <title id="mimari-baslik">Lab mimarisi</title>
+        <desc id="mimari-aciklama">Kali Linux saldırgan VM'i, Windows 10 kurban VM'ine SMB üzerinden saldırır. Windows VM'deki Universal Forwarder, Sysmon ve Windows olay loglarını TCP 9997 üzerinden ana bilgisayardaki Splunk Enterprise'a gönderir. Üçü de VirtualBox host-only ağında, 192.168.56.0/24.</desc>
+        <defs>
+          <marker id="ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path class="arrow" d="M0,0 L10,5 L0,10 z"/>
+          </marker>
+        </defs>
+
+        <rect class="zone" x="20" y="20" width="870" height="280" rx="10"/>
+        <text class="s" x="40" y="48">VirtualBox host-only ağı</text>
+        <text class="m" x="208" y="48">192.168.56.0/24</text>
+
+        <!-- Kali -->
+        <rect class="box" x="45" y="95" width="210" height="150" rx="8"/>
+        <text class="t" x="65" y="128">Kali Linux</text>
+        <text class="s" x="65" y="150">Saldırgan VM</text>
+        <text class="m" x="65" y="180">192.168.56.50</text>
+        <text class="m" x="65" y="202">netexec</text>
+
+        <!-- Windows -->
+        <rect class="box" x="350" y="75" width="230" height="190" rx="8"/>
+        <text class="t" x="370" y="108">Windows 10</text>
+        <text class="s" x="370" y="130">Kurban VM</text>
+        <text class="m" x="370" y="160">192.168.56.102</text>
+        <text class="m" x="370" y="186">Sysmon · 4104 açık</text>
+        <text class="m" x="370" y="208">Atomic Red Team</text>
+        <text class="m" x="370" y="230">Universal Forwarder</text>
+
+        <!-- Host -->
+        <rect class="box" x="670" y="95" width="200" height="150" rx="8"/>
+        <text class="t" x="690" y="128">Splunk Enterprise</text>
+        <text class="s" x="690" y="150">Ana bilgisayar</text>
+        <text class="m" x="690" y="180">192.168.56.1</text>
+        <text class="m" x="690" y="202">wineventlog, sysmon</text>
+
+        <!-- Akışlar -->
+        <path class="flow" d="M255,170 L346,170" marker-end="url(#ok)"/>
+        <text class="flow-label" x="263" y="160">SMB 445</text>
+        <path class="flow" d="M580,170 L666,170" marker-end="url(#ok)"/>
+        <text class="flow-label" x="588" y="160">TCP 9997</text>
+        <text class="s" x="263" y="192">saldırı</text>
+        <text class="s" x="588" y="192">loglar</text>
+      </svg>
+    </figure>
+    <p class="small muted">Senaryo 1-4 Windows VM'de Atomic Red Team ile, senaryo 5 Kali'den ağ üzerinden çalıştırıldı. Loglar Splunk'ta <code>wineventlog</code> ve <code>sysmon</code> index'lerine düşüyor.</p>
+
+    <h2 id="senaryolar">Senaryolar</h2>
+    <ul class="scenarios">
+      <li><a href="senaryolar/01-kesif.html">
+        <span class="no">01</span>
+        <span class="title">Keşif komutları</span>
+        <span class="ids">T1033 · T1087.001 · T1082</span>
+        <span class="desc">3 dakikada 3 farklı keşif aracı. Kayan pencere ile <code>dc(Image)</code>.</span>
+      </a></li>
+      <li><a href="senaryolar/02-sifreli-powershell.html">
+        <span class="no">02</span>
+        <span class="title">Şifrelenmiş PowerShell</span>
+        <span class="ids">T1059.001 · T1027</span>
+        <span class="desc"><code>-EncodedCommand</code> ve kısaltmaları. 7 günde 203 olaydan 1'e.</span>
+      </a></li>
+      <li><a href="senaryolar/03-yonetici-grubuna-ekleme.html">
+        <span class="no">03</span>
+        <span class="title">Administrators grubuna üye ekleme</span>
+        <span class="ids">T1098 · T1136.001</span>
+        <span class="desc">4732 ve dilden bağımsız grup SID'i <code>S-1-5-32-544</code>.</span>
+      </a></li>
+      <li><a href="senaryolar/04-run-anahtari.html">
+        <span class="no">04</span>
+        <span class="title">Run anahtarıyla kalıcılık</span>
+        <span class="ids">T1547.001</span>
+        <span class="desc">Sysmon 13 ile Run, RunOnce, RunOnceEx. Neyin ayıklanıp neyin bırakılacağı.</span>
+      </a></li>
+      <li><a href="senaryolar/05-kaba-kuvvet.html">
+        <span class="no">05</span>
+        <span class="title">SMB üzerinden kaba kuvvet</span>
+        <span class="ids">T1110.001</span>
+        <span class="desc">Kali'den netexec. Zamanlanmış uyarı kuruldu ve tetiklendi.</span>
+      </a></li>
+    </ul>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p>Tüm testler kendi izole lab'ımda yapıldı. Gerçek zararlı yazılım kullanılmadı.</p>
+      <p>Sysmon yapılandırması: <a href="https://github.com/SwiftOnSecurity/sysmon-config">SwiftOnSecurity/sysmon-config</a> (CC BY 4.0). Tespitler, lab ayarları ve betikler <a href="https://github.com/fadilyeren/soc-home-lab">GitHub'da</a>.</p>
+    </div>
+  </footer>
+</body>
+</html>

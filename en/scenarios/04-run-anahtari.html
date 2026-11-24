@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Persistence via Run keys · SOC Home Lab</title>
+  <link rel="stylesheet" href="../../css/style.css">
+  <link rel="alternate" hreflang="tr" href="../../senaryolar/04-run-anahtari.html">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a href="../">SOC Home Lab</a>
+      <nav>
+        <a href="../#scenarios">Scenarios</a>
+        <a href="https://github.com/fadilyeren/soc-home-lab">GitHub</a>
+        <a class="lang" href="../../senaryolar/04-run-anahtari.html" lang="tr" hreflang="tr" title="Türkçe">TR</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="read">
+    <p class="back"><a href="../#scenarios">← Scenarios</a></p>
+    <h1>04 · Persistence via Run keys</h1>
+    <ul class="meta"><li>T1547.001</li><li>status: tuned</li></ul>
+    <p class="lead">A new value being written to the <code>...\CurrentVersion\Run</code>, <code>RunOnce</code> or <code>RunOnceEx</code> keys.</p>
+
+    <h2>Attack</h2>
+    <pre><code>Invoke-AtomicTest T1547.001 -TestNumbers 1
+reg query &quot;HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
+Invoke-AtomicTest T1547.001 -TestNumbers 1 -Cleanup
+
+# Repeat test: HKLM RunOnceEx
+Invoke-AtomicTest T1547.001 -TestNumbers 2</code></pre>
+
+    <h2>Detection (SPL)</h2>
+    <h3>Final version</h3>
+<pre><code>index=sysmon EventID=13 TargetObject=*\\CurrentVersion\\Run* (Image!=&quot;*\\Program Files (x86)\\Microsoft\\*\\Installer\\setup.exe&quot;)
+| table _time, TargetObject, Image, Details</code></pre>
+
+
+    <h2>False positives and tuning</h2>
+    <p>When I looked at all Sysmon 13 events, there were 2,114 in 7 days. At first I thought I had written the query wrong. After checking the logs, I saw that most of them came from applications on the computer, mostly OneDrive's right-click menu registrations. So I narrowed the query to the Run keys, and 11 events were left. Apart from the test, all of them came from RunOnce: the Edge and Copilot installers and the OneDrive update.</p>
+    <p>I filtered out the Edge and Copilot installers. These programs run under <code>Program Files (x86)</code>, and writing there requires admin rights. I deliberately kept <code>OneDriveSetup.exe</code> under <code>AppData</code>. An attacker can write to <code>AppData</code> too. If I had filtered this program out by name, I would have given the attacker a place to hide.</p>
+
+    <h2>Fixes</h2>
+    <p>I wrote the filter wrong twice. In the first attempt I excluded every program under <code>Program Files (x86)\Microsoft</code>, when I only needed to exclude the installer. In the second attempt I joined two <code>!=</code> conditions with <code>AND</code>. I thought only events matching both conditions would be excluded, but it was the opposite: every event matching either condition was excluded, and the filter got wider. The right way was to join the two parts in a single pattern with <code>*</code>: <code>...\Microsoft\*\Installer\setup.exe</code>.</p>
+    </div>
+
+    <h2>Screenshots</h2>
+    <figure>
+  <a href="../../img/senaryolar/04-run-anahtari/01-atomic-t1547-1.png"><img src="../../img/senaryolar/04-run-anahtari/01-atomic-t1547-1.png" alt="" loading="lazy"></a>
+  <figcaption>Atomic test T1547.001-1: a non-existent file is written under <code>HKCU\...\Run</code>.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/04-run-anahtari/02-sysmon13-genis.png"><img src="../../img/senaryolar/04-run-anahtari/02-sysmon13-genis.png" alt="" loading="lazy"></a>
+  <figcaption>All Sysmon 13: 2,114 events in 7 days, mostly OneDrive shell extension registrations.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/04-run-anahtari/03-run-runonce.png"><img src="../../img/senaryolar/04-run-anahtari/03-run-runonce.png" alt="" loading="lazy"></a>
+  <figcaption>11 events with <code>Run*</code>: the Edge/Copilot installer and the OneDrive update.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/04-run-anahtari/07-tespit-son.png"><img src="../../img/senaryolar/04-run-anahtari/07-tespit-son.png" alt="" loading="lazy"></a>
+  <figcaption>Final version: the Edge/Copilot installer is filtered out, OneDriveSetup in <code>AppData</code> is deliberately kept.</figcaption>
+</figure>
+
+    <div class="read">
+    <h2>Test evidence</h2>
+    <div class="table-scroll"><table>
+      <tr><th>Test</th><th>Time (VM clock)</th><th>Result</th></tr>
+      <tr><td>T1547.001-1</td><td>2026-11-22 17:40</td><td><code>HKCU\...\Run</code>, caught</td></tr><tr><td>T1547.001-2</td><td>2026-11-22 18:24</td><td><code>HKLM\...\RunOnceEx</code>, caught</td></tr>
+    </table></div>
+
+    <h2>Lesson learned</h2>
+    <p>When writing a query, I need to keep in mind that the computer's own applications produce logs too. Almost all of the 2,114 events came from normal programs like OneDrive and Edge. But I also need to be careful when filtering a program out: I should only filter on something the attacker can't imitate.</p>
+
+    <p class="small muted">Full details (data sources, limitations, analyst next steps; in Turkish): <a href="https://github.com/fadilyeren/soc-home-lab/blob/main/detections/04-run-anahtari-kalicilik.md">detections/04-run-anahtari-kalicilik.md</a></p>
+
+    <nav class="next-prev"><a href="03-yonetici-grubuna-ekleme.html">← Adding a member to Administrators</a><a href="05-kaba-kuvvet.html">Brute force over SMB →</a></nav>
+    </div>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p>All tests were run in my own isolated lab. No real malware was used.</p>
+    </div>
+  </footer>
+</body>
+</html>

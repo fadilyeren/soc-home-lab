@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Run anahtarıyla kalıcılık · SOC Home Lab</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="alternate" hreflang="en" href="../en/scenarios/04-run-anahtari.html">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a href="../">SOC Home Lab</a>
+      <nav>
+        <a href="../#senaryolar">Senaryolar</a>
+        <a href="https://github.com/fadilyeren/soc-home-lab">GitHub</a>
+        <a class="lang" href="../en/scenarios/04-run-anahtari.html" lang="en" hreflang="en" title="English">EN</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="read">
+    <p class="back"><a href="../#senaryolar">← Senaryolar</a></p>
+    <h1>04 · Run anahtarıyla kalıcılık</h1>
+    <ul class="meta"><li>T1547.001</li><li>durum: ayıklanmış</li></ul>
+    <p class="lead"><code>...\CurrentVersion\Run</code>, <code>RunOnce</code> ve <code>RunOnceEx</code> anahtarlarına yeni bir değer yazılması.</p>
+
+    <h2>Saldırı</h2>
+    <pre><code>Invoke-AtomicTest T1547.001 -TestNumbers 1
+reg query &quot;HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run&quot;
+Invoke-AtomicTest T1547.001 -TestNumbers 1 -Cleanup
+
+# Tekrar testi: HKLM RunOnceEx
+Invoke-AtomicTest T1547.001 -TestNumbers 2</code></pre>
+
+    <h2>Tespit (SPL)</h2>
+    <h3>Son sürüm</h3>
+<pre><code>index=sysmon EventID=13 TargetObject=*\\CurrentVersion\\Run* (Image!=&quot;*\\Program Files (x86)\\Microsoft\\*\\Installer\\setup.exe&quot;)
+| table _time, TargetObject, Image, Details</code></pre>
+
+    
+    <h2>Yanlış alarmlar ve ayıklama</h2>
+    <p>Tüm Sysmon 13 olaylarına baktığımda 7 günde 2.114 olay geldi. Önce yanlış sorgu yazdığımı düşündüm. Logları kontrol edince çoğunun bilgisayardaki uygulamalardan geldiğini gördüm, en çok da OneDrive'ın sağ tık menüsü kayıtlarından. Bu yüzden sorguyu Run anahtarlarına daralttım ve 11 olay kaldı. Testin dışındakilerin hepsi RunOnce'tan geliyordu: Edge ve Copilot yükleyicileri ile OneDrive güncellemesi.</p>
+    <p>Edge ve Copilot yükleyicilerini ayıkladım. Bu programlar <code>Program Files (x86)</code> altında çalışıyor ve oraya yazmak yönetici yetkisi istiyor. <code>AppData</code> altındaki <code>OneDriveSetup.exe</code>'yi ise bilerek bıraktım. <code>AppData</code>'ya saldırgan da yazabilir. Bu programı adına göre ayıklasaydım, saldırgana saklanma yeri vermiş olurdum.</p>
+
+    <h2>Düzeltmeler</h2>
+    <p>Ayıklamayı iki kez yanlış yazdım. İlk denemede <code>Program Files (x86)\Microsoft</code> altındaki bütün programları dışarıda bıraktım, oysa yalnızca yükleyiciyi ayıklamam gerekiyordu. İkinci denemede iki <code>!=</code> koşulunu <code>AND</code> ile bağladım. Yalnızca iki koşula birden uyan olayların dışarıda kalacağını sandım, ama sonuç tersiydi: koşullardan birine uyan her olay dışarıda kaldı ve ayıklama genişledi. Doğrusu, iki parçayı tek bir kalıpta <code>*</code> ile birleştirmekti: <code>...\Microsoft\*\Installer\setup.exe</code>.</p>
+    </div>
+
+    <h2>Ekran görüntüleri</h2>
+    <figure>
+  <a href="../img/senaryolar/04-run-anahtari/01-atomic-t1547-1.png"><img src="../img/senaryolar/04-run-anahtari/01-atomic-t1547-1.png" alt="" loading="lazy"></a>
+  <figcaption>Atomic testi T1547.001-1: <code>HKCU\...\Run</code> altına var olmayan bir dosya yazılıyor.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/04-run-anahtari/02-sysmon13-genis.png"><img src="../img/senaryolar/04-run-anahtari/02-sysmon13-genis.png" alt="" loading="lazy"></a>
+  <figcaption>Tüm Sysmon 13: 7 günde 2.114 olay, çoğu OneDrive kabuk eklentisi kayıtları.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/04-run-anahtari/03-run-runonce.png"><img src="../img/senaryolar/04-run-anahtari/03-run-runonce.png" alt="" loading="lazy"></a>
+  <figcaption><code>Run*</code> ile 11 olay: Edge/Copilot yükleyicisi ve OneDrive güncellemesi.</figcaption>
+</figure>
+<figure>
+  <a href="../img/senaryolar/04-run-anahtari/07-tespit-son.png"><img src="../img/senaryolar/04-run-anahtari/07-tespit-son.png" alt="" loading="lazy"></a>
+  <figcaption>Son sürüm: Edge/Copilot yükleyicisi ayıklandı, <code>AppData</code>'daki OneDriveSetup bilerek bırakıldı.</figcaption>
+</figure>
+
+    <div class="read">
+    <h2>Test kanıtı</h2>
+    <div class="table-scroll"><table>
+      <tr><th>Test</th><th>Zaman (VM saati)</th><th>Sonuç</th></tr>
+      <tr><td>T1547.001-1</td><td>2026-11-22 17:40</td><td><code>HKCU\...\Run</code>, yakalandı</td></tr><tr><td>T1547.001-2</td><td>2026-11-22 18:24</td><td><code>HKLM\...\RunOnceEx</code>, yakalandı</td></tr>
+    </table></div>
+
+    <h2>Çıkarılan ders</h2>
+    <p>Sorguyu yazarken bilgisayarın kendi uygulamalarının da log ürettiğini düşünmem gerekiyor. 2.114 olayın neredeyse hepsi OneDrive, Edge gibi normal programlardan geliyordu. Ama bir programı ayıklarken de dikkatli olmak lazım: yalnızca saldırganın taklit edemeyeceği bir özelliğe göre ayıklamalıyım.</p>
+
+    <p class="small muted">Tüm ayrıntılar (veri kaynakları, sınırlamalar, analistin sonraki adımları): <a href="https://github.com/fadilyeren/soc-home-lab/blob/main/detections/04-run-anahtari-kalicilik.md">detections/04-run-anahtari-kalicilik.md</a></p>
+
+    <nav class="next-prev"><a href="03-yonetici-grubuna-ekleme.html">← Administrators grubuna üye ekleme</a><a href="05-kaba-kuvvet.html">SMB üzerinden kaba kuvvet →</a></nav>
+    </div>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p>Tüm testler kendi izole lab'ımda yapıldı. Gerçek zararlı yazılım kullanılmadı.</p>
+    </div>
+  </footer>
+</body>
+</html>

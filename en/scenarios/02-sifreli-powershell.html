@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Encoded PowerShell · SOC Home Lab</title>
+  <link rel="stylesheet" href="../../css/style.css">
+  <link rel="alternate" hreflang="tr" href="../../senaryolar/02-sifreli-powershell.html">
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap">
+      <a href="../">SOC Home Lab</a>
+      <nav>
+        <a href="../#scenarios">Scenarios</a>
+        <a href="https://github.com/fadilyeren/soc-home-lab">GitHub</a>
+        <a class="lang" href="../../senaryolar/02-sifreli-powershell.html" lang="tr" hreflang="tr" title="Türkçe">TR</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="read">
+    <p class="back"><a href="../#scenarios">← Scenarios</a></p>
+    <h1>02 · Encoded PowerShell</h1>
+    <ul class="meta"><li>T1059.001</li><li>T1027</li><li>status: tuned</li></ul>
+    <p class="lead"><code>powershell.exe</code> started with a Base64-encoded command (<code>-EncodedCommand</code> and its abbreviations).</p>
+
+    <h2>Attack</h2>
+    <pre><code>Invoke-AtomicTest T1059.001 -TestNumbers 17
+
+# Repeat test, different spelling
+powershell.exe -enc VwByAGkAdABlAC0ASABvAHMAdAAgACcAdABlAGsAcgBhAHIAIAB0AGUAcwB0AGkAJwA=</code></pre>
+
+    <h2>Detection (SPL)</h2>
+    <h3>First broad search (203 events)</h3>
+<pre><code>index=sysmon EventID=1 (CommandLine=*/e* OR CommandLine=*-e*)
+| table _time, Image, ParentImage, process_id, ParentProcessId, CommandLine</code></pre>
+    <h3>Final version (1 event)</h3>
+<pre><code>index=sysmon EventID=1 Image=*\\powershell.exe CommandLine IN (&quot;*-e *&quot;, &quot;*-ec *&quot;, &quot;*-en *&quot;, &quot;*-enc *&quot;, &quot;*-EncodedCommand *&quot;)
+| table _time, Image, ParentImage, process_id, ParentProcessId, CommandLine</code></pre>
+    <h3>Decoded content from 4104</h3>
+<pre><code>index=&quot;wineventlog&quot; EventID=4104 ScriptBlockText=*Hello*
+| table _time, ScriptBlockText</code></pre>
+
+
+    <h2>False positives and tuning</h2>
+    <p>My first query (<code>CommandLine=*-e*</code>) returned 203 events over the last 7 days. At first I thought I had written the query wrong. Then I realized the query worked; it was just too broad. Most of the results were OneDrive's <code>FileCoAuth.exe</code> and other parameters starting with <code>-e</code>. Limiting the search to <code>powershell.exe</code> left 11 events. But some of them didn't contain <code>-e</code> at all: my own PowerShell window and scripts run by Windows telemetry (<code>CompatTelRunner.exe</code>).</p>
+
+    <h2>Fixes</h2>
+    <p>The cause of those 11 events was quoting. Without quotes, <code>*-e *</code> was split at the space, and the lone <code>*</code> matched everything. Putting the values in double quotes brought the result down to 1 event: only the test. I was really relieved when I noticed this, because a small detail like this could have led me to wrong decisions. I also left a space after the parameter so that other parameters starting with <code>-e</code>, such as <code>-ExecutionPolicy</code>, don't match.</p>
+    </div>
+
+    <h2>Screenshots</h2>
+    <figure>
+  <a href="../../img/senaryolar/02-sifreli-powershell/01-atomic-t1059-17.png"><img src="../../img/senaryolar/02-sifreli-powershell/01-atomic-t1059-17.png" alt="" loading="lazy"></a>
+  <figcaption>Atomic test T1059.001-17: <code>cmd.exe /c powershell.exe -e &lt;Base64&gt;</code>.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/02-sifreli-powershell/05-genis-joker-gurultu.png"><img src="../../img/senaryolar/02-sifreli-powershell/05-genis-joker-gurultu.png" alt="" loading="lazy"></a>
+  <figcaption>Broad wildcard: 203 events in 7 days. OneDrive <code>FileCoAuth.exe</code> and every parameter starting with <code>-e</code>.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/02-sifreli-powershell/03-4104-katman1-gizli.png"><img src="../../img/senaryolar/02-sifreli-powershell/03-4104-katman1-gizli.png" alt="" loading="lazy"></a>
+  <figcaption>4104, layer 1: the text is split up and the name <code>iex</code> is hidden with <code>'ie{0}' -f 'x'</code>.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/02-sifreli-powershell/04-4104-katman2-cozulmus.png"><img src="../../img/senaryolar/02-sifreli-powershell/04-4104-katman2-cozulmus.png" alt="" loading="lazy"></a>
+  <figcaption>4104, layer 2: the actual command, visible without decoding Base64 by hand.</figcaption>
+</figure>
+<figure>
+  <a href="../../img/senaryolar/02-sifreli-powershell/09-tekrar-testi-sonuc.png"><img src="../../img/senaryolar/02-sifreli-powershell/09-tekrar-testi-sonuc.png" alt="" loading="lazy"></a>
+  <figcaption>Final version: the test (<code>-e</code>) and the repeat test (<code>-enc</code>) were caught, nothing else.</figcaption>
+</figure>
+
+    <div class="read">
+    <h2>Test evidence</h2>
+    <div class="table-scroll"><table>
+      <tr><th>Test</th><th>Time (VM clock)</th><th>Result</th></tr>
+      <tr><td>T1059.001-17 (<code>-e</code>)</td><td>2026-11-22 14:15:41.685</td><td>Caught (PID 5956)</td></tr><tr><td>Manual <code>-enc</code></td><td>2026-11-22 15:40:55.382</td><td>Caught (PID 312)</td></tr>
+    </table></div>
+
+    <h2>Lesson learned</h2>
+    <p>The command line only showed Base64. 4104, however, logged the command at every layer, and the last layer had it in plain text: <code>Write-Host 'Hello, from PowerShell!'</code>. Without that plain text, searching for it in a query would have been really hard.</p>
+    <p>My main lesson: write the query by thinking of every way an attacker could type the same command. <code>-e</code>, <code>-ec</code>, <code>-en</code>, <code>-enc</code> and <code>-EncodedCommand</code> are in the list. But spellings like <code>/e</code> and <code>-enco</code>, and PowerShell 7 (<code>pwsh.exe</code>), are still left out.</p>
+
+    <p class="small muted">Full details (data sources, limitations, analyst next steps; in Turkish): <a href="https://github.com/fadilyeren/soc-home-lab/blob/main/detections/02-sifreli-powershell.md">detections/02-sifreli-powershell.md</a></p>
+
+    <nav class="next-prev"><a href="01-kesif.html">← Discovery commands</a><a href="03-yonetici-grubuna-ekleme.html">Adding a member to Administrators →</a></nav>
+    </div>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <p>All tests were run in my own isolated lab. No real malware was used.</p>
+    </div>
+  </footer>
+</body>
+</html>
