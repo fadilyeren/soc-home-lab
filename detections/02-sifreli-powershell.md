@@ -1,4 +1,4 @@
-# Şifrelenmiş PowerShell komutu (-EncodedCommand)
+# Base64 ile kodlanmış PowerShell komutu (-EncodedCommand)
 
 **Durum:** ayıklanmış (uyarıya çevrilmedi)
 
@@ -82,6 +82,6 @@ Base64 elle çözülmeden asıl komut görüldü.
 
 ## Analistin sonraki adımları
 
-- Şifreli PowerShell'i hangi program başlatmış (`ParentImage`)? Office, tarayıcı veya `wmiprvse.exe` çok şüphelidir.
+- Kodlanmış PowerShell'i hangi program başlatmış (`ParentImage`)? Office, tarayıcı veya `wmiprvse.exe` çok şüphelidir.
 - Aynı süreç ve zaman için 4104'te `ScriptBlockText`'e bak: komut çözülmüş halde ne yapıyor?
 - Komut ağ bağlantısı kurduysa Sysmon `EventID=3`, dosya bıraktıysa Sysmon `EventID=11` ile devam et.
