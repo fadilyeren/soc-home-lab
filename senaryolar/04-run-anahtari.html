@@ -40,7 +40,7 @@ Invoke-AtomicTest T1547.001 -TestNumbers 2</code></pre>
 | table _time, TargetObject, Image, Details</code></pre>
 
     
-    <h2>Yanlış alarmlar ve ayıklama</h2>
+    <h2>False positive'ler ve ayıklama</h2>
     <p>Tüm Sysmon 13 olaylarına baktığımda 7 günde 2.114 olay geldi. Önce yanlış sorgu yazdığımı düşündüm. Logları kontrol edince çoğunun bilgisayardaki uygulamalardan geldiğini gördüm, en çok da OneDrive'ın sağ tık menüsü kayıtlarından. Bu yüzden sorguyu Run anahtarlarına daralttım ve 11 olay kaldı. Testin dışındakilerin hepsi RunOnce'tan geliyordu: Edge ve Copilot yükleyicileri ile OneDrive güncellemesi.</p>
     <p>Edge ve Copilot yükleyicilerini ayıkladım. Bu programlar <code>Program Files (x86)</code> altında çalışıyor ve oraya yazmak yönetici yetkisi istiyor. <code>AppData</code> altındaki <code>OneDriveSetup.exe</code>'yi ise bilerek bıraktım. <code>AppData</code>'ya saldırgan da yazabilir. Bu programı adına göre ayıklasaydım, saldırgana saklanma yeri vermiş olurdum.</p>
 
@@ -78,7 +78,7 @@ Invoke-AtomicTest T1547.001 -TestNumbers 2</code></pre>
 
     <p class="small muted">Tüm ayrıntılar (veri kaynakları, sınırlamalar, analistin sonraki adımları): <a href="https://github.com/fadilyeren/soc-home-lab/blob/main/detections/04-run-anahtari-kalicilik.md">detections/04-run-anahtari-kalicilik.md</a></p>
 
-    <nav class="next-prev"><a href="03-yonetici-grubuna-ekleme.html">← Administrators grubuna üye ekleme</a><a href="05-kaba-kuvvet.html">SMB üzerinden kaba kuvvet →</a></nav>
+    <nav class="next-prev"><a href="03-yonetici-grubuna-ekleme.html">← Administrators grubuna üye ekleme</a><a href="05-kaba-kuvvet.html">SMB üzerinden brute force →</a></nav>
     </div>
   </main>
 

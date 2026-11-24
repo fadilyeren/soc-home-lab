@@ -44,7 +44,7 @@ powershell.exe -enc VwByAGkAdABlAC0ASABvAHMAdAAgACcAdABlAGsAcgBhAHIAIAB0AGUAcwB0
 | table _time, ScriptBlockText</code></pre>
 
     
-    <h2>Yanlış alarmlar ve ayıklama</h2>
+    <h2>False positive'ler ve ayıklama</h2>
     <p>İlk sorgum (<code>CommandLine=*-e*</code>) son 7 günde 203 olay getirdi. Önce sorguyu yanlış yazdığımı sandım. Sonra sorgunun doğru çalıştığını, yalnızca fazla geniş olduğunu fark ettim. Gelenlerin çoğu OneDrive'ın <code>FileCoAuth.exe</code> programı ve <code>-e</code> ile başlayan başka parametrelerdi. Aramayı yalnızca <code>powershell.exe</code> ile sınırlayınca 11 olay kaldı. Ama aralarında <code>-e</code> hiç geçmeyen olaylar da vardı: kendi PowerShell pencerem ve Windows telemetrisinin (<code>CompatTelRunner.exe</code>) çalıştırdığı betikler.</p>
 
     <h2>Düzeltmeler</h2>

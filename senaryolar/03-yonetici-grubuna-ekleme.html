@@ -37,7 +37,7 @@ Invoke-AtomicTest T1136.001 -TestNumbers 8 -Cleanup</code></pre>
 | table _time, EventID, src_user, user, Group_Name, TargetSid</code></pre>
 
     
-    <h2>Yanlış alarmlar ve ayıklama</h2>
+    <h2>False positive'ler ve ayıklama</h2>
     <p>Bir hesap açılışı Security günlüğünde üç olay bıraktı: 4720 (hesap açıldı), Users grubu için 4732 ve Administrators grubu için 4732. Users'a eklemeyi ilk gördüğümde, saldırganın dikkat çekmemek için hesabı önce Users'a, sonra Administrators'a aldığını düşündüm. Sonra bunu Windows'un kendisinin yaptığını öğrendim: her yeni yerel hesap otomatik olarak Users grubuna ekleniyor. Bütün 4732'lerde alarm verseydim, her hesap açılışı bir alarm üretirdi. Bizim için asıl önemli olan Administrators grubuna eklenmesiydi, çünkü bu gruptakilerin yetkileri çok daha fazla. Kural yalnızca ona bakıyor. Son 7 günde 2 olay çıktı, ikisi de testti.</p>
 
     <h2>Düzeltmeler</h2>

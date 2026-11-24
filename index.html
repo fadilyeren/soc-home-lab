@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SOC Home Lab</title>
-  <meta name="description" content="Splunk, Sysmon ve Atomic Red Team ile kurulan bir SOC homelab'ı: 5 saldırı senaryosu, SPL tespitleri, yanlış alarm analizi ve zamanlanmış uyarı.">
+  <meta name="description" content="Splunk, Sysmon ve Atomic Red Team ile kurulan bir SOC homelab'ı: 5 saldırı senaryosu, SPL tespitleri, false positive analizi ve scheduled alert.">
   <link rel="stylesheet" href="css/style.css">
   <link rel="alternate" hreflang="tr" href="./">
   <link rel="alternate" hreflang="en" href="en/">
@@ -24,7 +24,7 @@
   <main class="wrap">
     <h1>SOC Home Lab</h1>
     <p class="lead">Bu lab'ı, gerçek ortamda olan olayları taklit ederek kendimi gerçek bir SOC ortamına hazırlamak için kurdum. Splunk, Sysmon ve Atomic Red Team ile beş saldırı çalıştırdım, bıraktıkları izi SPL ile inceledim ve her biri için bir tespit yazdım.</p>
-    <p class="read">Lab'ımda da gerçek ortamdaki gibi yanlış alarmlar vardı. Zamanımın çoğu, istediğim loglar dışındakileri ayıklamakla geçti; en çok gurur duyduğum şey de bununla baş etmek oldu. Her sayfada yazdığım sorguların yanında yaptığım hataları ve onları nasıl düzelttiğimi de anlattım. Kaba kuvvet tespitini zamanlanmış uyarıya çevirip tetikledim.</p>
+    <p class="read">Lab'ımda da gerçek ortamdaki gibi false positive'ler vardı. Zamanımın çoğu, istediğim loglar dışındakileri ayıklamakla geçti; en çok gurur duyduğum şey de bununla baş etmek oldu. Her sayfada yazdığım sorguların yanında yaptığım hataları ve onları nasıl düzelttiğimi de anlattım. Brute force tespitini scheduled alert'e çevirip tetikledim.</p>
 
     <figure class="diagram" aria-labelledby="mimari-baslik">
       <svg viewBox="0 0 910 320" role="img" aria-labelledby="mimari-baslik mimari-aciklama">
@@ -102,9 +102,9 @@
       </a></li>
       <li><a href="senaryolar/05-kaba-kuvvet.html">
         <span class="no">05</span>
-        <span class="title">SMB üzerinden kaba kuvvet</span>
+        <span class="title">SMB üzerinden brute force</span>
         <span class="ids">T1110.001</span>
-        <span class="desc">Kali'den netexec. Zamanlanmış uyarı kuruldu ve tetiklendi.</span>
+        <span class="desc">Kali'den netexec. Scheduled alert kuruldu ve tetiklendi.</span>
       </a></li>
     </ul>
   </main>

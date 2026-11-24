@@ -40,7 +40,7 @@ Invoke-AtomicTest T1082 -TestNumbers 1</code></pre>
 | where komutlar &gt; 2</code></pre>
 
     
-    <h2>Yanlış alarmlar ve ayıklama</h2>
+    <h2>False positive'ler ve ayıklama</h2>
     <p>Geniş aramada beklemediğim 7 <code>whoami</code> çıktı, oysa testlerin hiçbiri <code>whoami</code> çalıştırmıyordu. Üst süreç kimliğine bakınca hepsinin test komutlarını başlatan PowerShell'den geldiğini gördüm: Atomic Red Team her testten 1-2 saniye önce kendi <code>whoami</code>'sini çalıştırıyor. Beni en çok bu şaşırttı, çünkü aynı bir saldırgan gibi davranıyor: önce kim olduğuna bakıyor, sonra ona göre hareket ediyor.</p>
     <p><code>whoami</code>'yi yine de listede bıraktım, çünkü gerçek saldırganlar da onu çok kullanıyor. Tek başına çalışan bir <code>whoami</code> kuralı tetiklemiyor, çünkü kural farklı araçların sayısına bakıyor. <code>net1.exe</code>'yi saymadım: <code>net.exe</code> her çalıştığında onu da başlatıyor, her komut iki kez sayılırdı.</p>
 
